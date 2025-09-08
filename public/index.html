@@ -1,14 +1,56 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>⚽ Live Scores</title>
+  <title>⚽ Live Scores & Pattern Checker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+    h1 {
+      color: #222;
+      text-align: center;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      background: white;
+      margin: 8px 0;
+      padding: 12px;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .live {
+      color: red;
+      font-weight: bold;
+    }
+    .upcoming {
+      color: green;
+    }
+    .pattern {
+      font-weight: bold;
+      margin-left: 10px;
+    }
+  </style>
 </head>
 <body>
-  <h1>⚽ Live Scores</h1>
+  <h1>⚽ Live Scores & Pattern Checker</h1>
   <div id="scores">Loading...</div>
 
   <script>
+    // --- Mock pattern matcher logic ---
+    function checkPattern(homeScore, awayScore) {
+      // Example: live score >2 goals difference = pattern found
+      if (homeScore !== null && awayScore !== null && Math.abs(homeScore - awayScore) >= 2) {
+        return "✅ Pattern Found";
+      }
+      return "❌ No Pattern";
+    }
+
     async function loadScores() {
       try {
         const response = await fetch("/livescores");
@@ -22,31 +64,43 @@
 
         let html = "<ul>";
         matches.forEach(m => {
-          const home = m.teams?.home?.name || "TBD";
-          const away = m.teams?.away?.name || "TBD";
-          const homeGoals = m.goals?.home ?? "-";
-          const awayGoals = m.goals?.away ?? "-";
+          const home = m.teams.home.name;
+          const away = m.teams.away.name;
+          const score = (m.goals.home !== null && m.goals.away !== null)
+            ? `${m.goals.home} - ${m.goals.away}`
+            : "vs";
 
-          // detect if live or upcoming
-          const status = m.fixture?.status?.short;
-          const isLive = status === "1H" || status === "2H" || status === "LIVE";
+          // Pattern result
+          const patternResult = checkPattern(m.goals.home, m.goals.away);
 
-          if (isLive) {
-            html += `<li>🔥 LIVE: ${home} vs ${away} → ${homeGoals} - ${awayGoals}</li>`;
+          // Date formatting
+          let dateText = "";
+          if (m.fixture && m.fixture.date) {
+            const dateObj = new Date(m.fixture.date);
+            dateText = isNaN(dateObj.getTime()) ? "" : dateObj.toLocaleString();
+          }
+
+          // LIVE / Upcoming / default
+          if (m.fixture && m.fixture.status && m.fixture.status.short === "1H") {
+            html += `<li class="live">🔥 LIVE: ${home} vs ${away} → ${score} <span class="pattern">${patternResult}</span></li>`;
+          } else if (dateText) {
+            html += `<li class="upcoming">📅 Upcoming: ${home} vs ${away} → ${dateText} <span class="pattern">${patternResult}</span></li>`;
           } else {
-            const date = new Date(m.fixture?.date).toLocaleString();
-            html += `<li>📅 Upcoming: ${home} vs ${away} → ${date}</li>`;
+            html += `<li>${home} vs ${away} → ${score} <span class="pattern">${patternResult}</span></li>`;
           }
         });
         html += "</ul>";
 
         document.getElementById("scores").innerHTML = html;
       } catch (err) {
-        document.getElementById("scores").innerHTML = "⚠️ Error: " + err.message;
+        document.getElementById("scores").innerHTML = "⚠️ Error loading matches.";
+        console.error(err);
       }
     }
 
+    // --- Initial load & auto-refresh every 60s ---
     loadScores();
+    setInterval(loadScores, 60000);
   </script>
 </body>
 </html>
