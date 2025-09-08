@@ -1,45 +1,64 @@
-const express = require("express");
-const fetch = require("node-fetch");
+import express from "express";
+import fetch from "node-fetch";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// serve static files from "public" folder
 app.use(express.static("public"));
 
-// Helper: fetch from API
-async function fetchFromAPI(endpoint) {
-  const url = `https://api-football-v1.p.rapidapi.com/v3/${endpoint}`;
-  const response = await fetch(url, {
-    method: "GET",
-    headers: {
-      "x-rapidapi-host": "api-football-v1.p.rapidapi.com",
-      "x-rapidapi-key": process.env.RAPIDAPI_KEY
-    }
-  });
-  return response.json();
-}
-
-// API route for live scores (with fallback)
+// ✅ Livescores route
 app.get("/livescores", async (req, res) => {
   try {
     // 1. Try live matches
-    let data = await fetchFromAPI("fixtures?live=all");
+    let response = await fetch("https://v3.football.api-sports.io/fixtures?live=all", {
+      headers: { "x-apisports-key": process.env.API_KEY }
+    });
+    let data = await response.json();
 
-    // 2. If no live matches, fallback to upcoming
-    if (!data.response || data.response.length === 0) {
-      console.log("⚠️ No live matches → fetching upcoming fixtures instead");
-      data = await fetchFromAPI("fixtures?next=10");
+    let matches = data.response || [];
+
+    // 2. If no live, try upcoming
+    if (matches.length === 0) {
+      response = await fetch("https://v3.football.api-sports.io/fixtures?next=5", {
+        headers: { "x-apisports-key": process.env.API_KEY }
+      });
+      data = await response.json();
+      matches = data.response || [];
     }
 
-    res.json(data);
+    // 3. If still empty, return fake matches
+    if (matches.length === 0) {
+      matches = [
+        {
+          teams: { home: { name: "Team Alpha" }, away: { name: "Team Beta" } },
+          goals: { home: 2, away: 1 }
+        },
+        {
+          teams: { home: { name: "Team Gamma" }, away: { name: "Team Delta" } },
+          goals: { home: 0, away: 0 }
+        }
+      ];
+    }
+
+    res.json({ response: matches });
   } catch (err) {
-    console.error("Error fetching matches:", err.message);
-    res.status(500).json({ error: "Failed to fetch matches" });
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
 });
 
-// start the server
-app.listen(PORT, () => {
-  console.log(`⚡ Server running at http://localhost:${PORT}`);
+// ✅ Test route (always returns leagues, works even on free plan)
+app.get("/test", async (req, res) => {
+  try {
+    const response = await fetch("https://v3.football.api-sports.io/leagues", {
+      headers: { "x-apisports-key": process.env.API_KEY }
+    });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
 });
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
