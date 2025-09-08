@@ -4,7 +4,7 @@ const fetch = require("node-fetch");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// serve static files from "public" folder (your index.html lives there)
+// serve static files from "public" folder
 app.use(express.static("public"));
 
 // API route for live scores
@@ -14,11 +14,15 @@ app.get("/livescores", async (req, res) => {
       method: "GET",
       headers: {
         "x-rapidapi-host": "api-football-v1.p.rapidapi.com",
-        "x-rapidapi-key": process.env.RAPIDAPI_KEY // stored securely in Render
+        "x-rapidapi-key": process.env.RAPIDAPI_KEY
       }
     });
 
     const data = await response.json();
+
+    // log full API response to Render logs for debugging
+    console.log("API response:", JSON.stringify(data, null, 2));
+
     res.json(data);
   } catch (err) {
     console.error("Error fetching live scores:", err.message);
