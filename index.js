@@ -6,8 +6,8 @@ app.use(express.static("public"));
 
 // --- Mock last 5 matches for teams ---
 const lastMatches = {
-  "Team Alpha": ["2-1","1-1","0-2","3-0","2-2"],
-  "Team Beta": ["0-1","1-1","1-2","2-0","0-0"],
+  "Team Alpha": ["2-1","1-1","0-2","3-0","2-2"],   // unchanged
+  "Team Beta":  ["3-0","1-1","1-2","2-0","0-0"],   // first match changed to "3-0" to match pattern
   "Team Gamma": ["1-1","2-2","0-1","1-0","3-2"],
   "Team Delta": ["0-2","1-3","2-2","1-1","0-0"]
 };
