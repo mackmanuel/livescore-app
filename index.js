@@ -1,73 +1,68 @@
 const express = require("express");
-const fetch = require("node-fetch");
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static("public"));
 
-// Livescores route
-app.get("/livescores", async (req, res) => {
-  try {
-    let matches = [];
+// --- Mock last 5 matches for teams ---
+const lastMatches = {
+  "Team Alpha": ["2-1","1-1","0-2","3-0","2-2"],
+  "Team Beta": ["0-1","1-1","1-2","2-0","0-0"],
+  "Team Gamma": ["1-1","2-2","0-1","1-0","3-2"],
+  "Team Delta": ["0-2","1-3","2-2","1-1","0-0"]
+};
 
-    // --- Try real API first ---
-    if (process.env.API_KEY) {
-      try {
-        let response = await fetch("https://v3.football.api-sports.io/fixtures?live=all", {
-          headers: { "x-apisports-key": process.env.API_KEY }
-        });
-        let data = await response.json();
-        matches = data.response || [];
+// --- Pattern matcher logic ---
+function areSimilar(scoreA, scoreB) {
+  const highScores = ["3-0","0-3","3-1","1-3","3-3","2-3","3-2",
+                      "4-4","3-4","4-3","4-1","1-4","4-0","0-4",
+                      "5-1","1-5","5-2","2-5","5-3","3-5","5-5","5-4","4-5",
+                      "6-0","0-6","7-0","0-7"];
+  const lowSetA = ["0-2","2-0","2-2","2-1","1-2"];
+  const lowSetB = ["1-1","1-0","0-1","0-5","5-0","8-0","0-8"];
 
-        // If no live matches, try upcoming
-        if (matches.length === 0) {
-          response = await fetch("https://v3.football.api-sports.io/fixtures?next=5", {
-            headers: { "x-apisports-key": process.env.API_KEY }
-          });
-          data = await response.json();
-          matches = data.response || [];
-        }
-      } catch (apiErr) {
-        console.error("API fetch error:", apiErr);
+  if (scoreA === scoreB) return true;
+  if (scoreA === "0-0" && highScores.includes(scoreB)) return true;
+  if (scoreB === "0-0" && highScores.includes(scoreA)) return true;
+  if (lowSetA.includes(scoreA) && lowSetA.includes(scoreB)) return true;
+  if (lowSetB.includes(scoreA) && lowSetB.includes(scoreB)) return true;
+  return false;
+}
+
+function checkPattern(teamA, teamB) {
+  const matchesA = lastMatches[teamA] || [];
+  const matchesB = lastMatches[teamB] || [];
+  for (let a of matchesA) {
+    for (let b of matchesB) {
+      if (areSimilar(a,b)) {
+        return "✅ Pattern Found";
       }
     }
-
-    // --- If still no matches, return mock data ---
-    if (matches.length === 0) {
-      matches = [
-        {
-          fixture: {
-            date: new Date().toISOString(), // now → LIVE
-            status: { short: "1H" } // 1st half
-          },
-          teams: { home: { name: "Team Alpha" }, away: { name: "Team Beta" } },
-          goals: { home: 1, away: 0 }
-        },
-        {
-          fixture: {
-            date: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2h from now
-            status: { short: "NS" } // not started
-          },
-          teams: { home: { name: "Team Gamma" }, away: { name: "Team Delta" } },
-          goals: { home: null, away: null }
-        }
-      ];
-    }
-
-    res.json({ response: matches });
-  } catch (err) {
-    console.error("Error in /livescores route:", err);
-    res.status(500).json({ error: err.message });
   }
+  return "❌ No Pattern";
+}
+
+// --- Livescores endpoint with mock data ---
+app.get("/livescores", (req, res) => {
+  const matches = [
+    {
+      fixture: { date: new Date().toISOString(), status: { short: "1H" } },
+      teams: { home: { name: "Team Alpha" }, away: { name: "Team Beta" } },
+      goals: { home: 1, away: 0 },
+      pattern: checkPattern("Team Alpha", "Team Beta")
+    },
+    {
+      fixture: { date: new Date(Date.now() + 2*60*60*1000).toISOString(), status: { short: "NS" } },
+      teams: { home: { name: "Team Gamma" }, away: { name: "Team Delta" } },
+      goals: { home: null, away: null },
+      pattern: checkPattern("Team Gamma", "Team Delta")
+    }
+  ];
+
+  res.json({ response: matches });
 });
 
-// Root test route
-app.get("/", (req, res) => {
-  res.send("✅ Hello World! The server is running.");
-});
+// Root test
+app.get("/", (req, res) => res.send("✅ Hello World! The server is running."));
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
