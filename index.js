@@ -5,7 +5,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static("public"));
 
-// --- Mock last 5 matches per team for pattern checking ---
+// --- Pattern matcher (last 5 matches per team) ---
 const lastMatches = {
   "Team Alpha": ["2-1","1-1","0-2","3-0","2-2"],
   "Team Beta":  ["3-0","1-1","1-2","2-0","0-0"],
@@ -15,9 +15,8 @@ const lastMatches = {
   "Team Zeta": ["1-0","2-1","1-1","0-2","2-2"]
 };
 
-// --- Pattern matcher logic ---
+// --- Pattern checking logic ---
 function areSimilar(scoreA, scoreB) {
-  const highScores = ["3-0","0-3","3-1","1-3","3-3","2-3","3-2"];
   const lowSetA = ["0-2","2-0","2-2","2-1","1-2"];
   const lowSetB = ["1-1","1-0","0-1"];
   if (scoreA === scoreB) return true;
@@ -37,83 +36,42 @@ function checkPattern(teamA, teamB) {
   return "❌ No Pattern";
 }
 
-// --- Endpoint: upcoming fixtures ---
+// --- Endpoint: fetch real daily fixtures ---
 app.get("/livescores", async (req, res) => {
   try {
-    let matches = [];
+    if (!process.env.API_KEY) throw new Error("API_KEY not set in environment variables");
 
-    // --- Try fetching real API if key is provided ---
-    if (process.env.API_KEY) {
-      const response = await fetch(
-        "https://api-football-v1.p.rapidapi.com/v3/fixtures?next=10", 
-        {
-          method: "GET",
-          headers: {
-            "x-rapidapi-host": "api-football-v1.p.rapidapi.com",
-            "x-rapidapi-key": process.env.API_KEY
-          }
-        }
-      );
-      const data = await response.json();
+    const response = await fetch("https://v3.football.api-sports.io/fixtures?next=10", {
+      method: "GET",
+      headers: {
+        "x-rapidapi-host": "v3.football.api-sports.io",
+        "x-rapidapi-key": process.env.API_KEY
+      }
+    });
 
-      matches = data.response.map(m => ({
-        fixture: { date: m.fixture.date, status: { short: m.fixture.status.short } },
-        teams: { home: { name: m.teams.home.name }, away: { name: m.teams.away.name } },
-        goals: { home: m.goals.home, away: m.goals.away },
-        pattern: checkPattern(m.teams.home.name, m.teams.away.name)
-      }));
+    const data = await response.json();
+
+    if (!data.response || !data.response.length) {
+      return res.json({ response: [] });
     }
 
-    // --- Fallback to mock data if API fails or no key ---
-    if (!matches.length) {
-      const now = Date.now();
-      matches = [
-        {
-          fixture: { date: new Date(now + 2*60*60*1000).toISOString(), status: { short: "NS" } },
-          teams: { home: { name: "Team Alpha" }, away: { name: "Team Beta" } },
-          goals: { home: null, away: null },
-          pattern: checkPattern("Team Alpha", "Team Beta")
-        },
-        {
-          fixture: { date: new Date(now + 4*60*60*1000).toISOString(), status: { short: "NS" } },
-          teams: { home: { name: "Team Gamma" }, away: { name: "Team Delta" } },
-          goals: { home: null, away: null },
-          pattern: checkPattern("Team Gamma", "Team Delta")
-        },
-        {
-          fixture: { date: new Date(now + 6*60*60*1000).toISOString(), status: { short: "NS" } },
-          teams: { home: { name: "Team Epsilon" }, away: { name: "Team Zeta" } },
-          goals: { home: null, away: null },
-          pattern: checkPattern("Team Epsilon", "Team Zeta")
-        }
-      ];
-    }
+    // Map API data to include pattern check
+    const fixtures = data.response.map(m => ({
+      fixture: { date: m.fixture.date, status: { short: m.fixture.status.short } },
+      teams: { home: { name: m.teams.home.name }, away: { name: m.teams.away.name } },
+      goals: { home: m.goals.home, away: m.goals.away },
+      pattern: checkPattern(m.teams.home.name, m.teams.away.name)
+    }));
 
-    res.json({ response: matches });
+    res.json({ response: fixtures });
 
   } catch (err) {
     console.error(err);
-    // Always return mock data if something goes wrong
-    const now = Date.now();
-    const matches = [
-      {
-        fixture: { date: new Date(now + 2*60*60*1000).toISOString(), status: { short: "NS" } },
-        teams: { home: { name: "Team Alpha" }, away: { name: "Team Beta" } },
-        goals: { home: null, away: null },
-        pattern: checkPattern("Team Alpha", "Team Beta")
-      },
-      {
-        fixture: { date: new Date(now + 4*60*60*1000).toISOString(), status: { short: "NS" } },
-        teams: { home: { name: "Team Gamma" }, away: { name: "Team Delta" } },
-        goals: { home: null, away: null },
-        pattern: checkPattern("Team Gamma", "Team Delta")
-      }
-    ];
-    res.json({ response: matches });
+    res.status(500).json({ error: "Failed to fetch fixtures" });
   }
 });
 
-// Root test
+// Root
 app.get("/", (req, res) => res.send("✅ Hello World! The server is running."));
 
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
