@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>⚽ Live Scores</title>
+</head>
+<body>
+  <h1>⚽ Live Scores</h1>
+  <div id="scores">Loading...</div>
+
+  <script>
+    async function loadScores() {
+      try {
+        const response = await fetch("/livescores");
+        const data = await response.json();
+        const matches = data.response || [];
+
+        if (matches.length === 0) {
+          document.getElementById("scores").innerHTML = "No live matches right now.";
+          return;
+        }
+
+        let html = "<ul>";
+        matches.forEach(m => {
+          const home = m.teams.home.name;
+          const away = m.teams.away.name;
+          const score = `${m.goals.home} - ${m.goals.away}`;
+          html += `<li>${home} vs ${away} → ${score}</li>`;
+        });
+        html += "</ul>";
+
+        document.getElementById("scores").innerHTML = html;
+      } catch (err) {
+        document.getElementById("scores").innerHTML = "⚠️ Error: " + err.message;
+      }
+    }
+
+    loadScores();
+  </script>
+</body>
+</html>
