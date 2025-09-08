@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>⚽ Live Scores & Pattern Checker</title>
+  <title>⚽ Upcoming Fixtures & Pattern Checker</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -10,8 +10,9 @@
       padding: 20px;
     }
     h1 {
-      color: #222;
       text-align: center;
+      color: #333;
+      margin-bottom: 20px;
     }
     ul {
       list-style: none;
@@ -19,83 +20,77 @@
     }
     li {
       background: white;
-      margin: 8px 0;
-      padding: 12px;
+      margin-bottom: 10px;
+      padding: 10px;
       border-radius: 6px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
-    .live {
-      color: red;
+    li span.pattern {
       font-weight: bold;
     }
-    .upcoming {
+    li span.pattern.found {
       color: green;
     }
-    .pattern {
-      font-weight: bold;
-      margin-left: 10px;
+    li span.pattern.notfound {
+      color: red;
     }
   </style>
 </head>
 <body>
-  <h1>⚽ Live Scores & Pattern Checker</h1>
-  <div id="scores">Loading...</div>
 
-  <script>
-    async function loadScores() {
-      try {
-        const response = await fetch("/livescores");
-        const data = await response.json();
-        const matches = data.response || [];
+<h1>⚽ Upcoming Fixtures & Pattern Checker</h1>
 
-        if (matches.length === 0) {
-          document.getElementById("scores").innerHTML = "⚠️ No live or upcoming matches.";
-          return;
-        }
+<ul id="fixtures">
+  <li>Loading fixtures...</li>
+</ul>
 
-        let html = "<ul>";
+<script>
+async function loadFixtures() {
+  try {
+    const res = await fetch("/livescores");
+    const data = await res.json();
+    const matches = data.response || [];
 
-        matches.forEach(m => {
-          const home = m.teams.home.name;
-          const away = m.teams.away.name;
-          const score = (m.goals.home !== null && m.goals.away !== null)
-            ? `${m.goals.home} - ${m.goals.away}`
-            : "vs";
+    const ul = document.getElementById("fixtures");
+    ul.innerHTML = "";
 
-          // Use backend pattern field
-          const patternResult = m.pattern || "❌ No Pattern";
-
-          // Safe date parsing
-          let dateText = "";
-          if (m.fixture && m.fixture.date) {
-            const parsedDate = Date.parse(m.fixture.date);
-            if (!isNaN(parsedDate)) {
-              const dateObj = new Date(parsedDate);
-              dateText = dateObj.toLocaleString();
-            }
-          }
-
-          if (m.fixture && m.fixture.status && m.fixture.status.short === "1H") {
-            html += `<li class="live">🔥 LIVE: ${home} vs ${away} → ${score} <span class="pattern">${patternResult}</span></li>`;
-          } else if (dateText) {
-            html += `<li class="upcoming">📅 Upcoming: ${home} vs ${away} → ${dateText} <span class="pattern">${patternResult}</span></li>`;
-          } else {
-            html += `<li>${home} vs ${away} → ${score} <span class="pattern">${patternResult}</span></li>`;
-          }
-        });
-
-        html += "</ul>";
-        document.getElementById("scores").innerHTML = html;
-
-      } catch (err) {
-        document.getElementById("scores").innerHTML = "⚠️ Error loading matches.";
-        console.error(err);
-      }
+    if(matches.length === 0) {
+      ul.innerHTML = "<li>⚠️ No upcoming fixtures.</li>";
+      return;
     }
 
-    // Initial load + refresh every 60 seconds
-    loadScores();
-    setInterval(loadScores, 60000);
-  </script>
+    matches.forEach(m => {
+      const li = document.createElement("li");
+
+      const date = new Date(m.fixture.date);
+      const dateStr = `${date.getDate().toString().padStart(2,'0')}/` +
+                      `${(date.getMonth()+1).toString().padStart(2,'0')}/` +
+                      `${date.getFullYear()}, ` +
+                      `${date.getHours().toString().padStart(2,'0')}:` +
+                      `${date.getMinutes().toString().padStart(2,'0')}:` +
+                      `${date.getSeconds().toString().padStart(2,'0')}`;
+
+      const patternClass = m.pattern.includes("✅") ? "found" : "notfound";
+
+      li.innerHTML = `
+        📅 Upcoming: ${m.teams.home.name} vs ${m.teams.away.name} → ${dateStr} 
+        <span class="pattern ${patternClass}">${m.pattern}</span>
+      `;
+
+      ul.appendChild(li);
+    });
+
+  } catch(err) {
+    console.error(err);
+    document.getElementById("fixtures").innerHTML = "<li>⚠️ Error loading fixtures</li>";
+  }
+}
+
+// Load fixtures on page load
+loadFixtures();
+</script>
+
 </body>
 </html>
