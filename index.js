@@ -36,18 +36,21 @@ function checkPattern(teamA, teamB) {
   return "❌ No Pattern";
 }
 
-// --- Endpoint: fetch real daily fixtures ---
+// --- Endpoint: fetch live fixtures ---
 app.get("/livescores", async (req, res) => {
   try {
     if (!process.env.API_KEY) throw new Error("API_KEY not set in environment variables");
 
-    const response = await fetch("https://v3.football.api-sports.io/fixtures?next=10", {
-      method: "GET",
-      headers: {
-        "x-rapidapi-host": "v3.football.api-sports.io",
-        "x-rapidapi-key": process.env.API_KEY
+    const response = await fetch(
+      "https://v3.football.api-sports.io/fixtures?live=all",
+      {
+        method: "GET",
+        headers: {
+          "x-rapidapi-host": "v3.football.api-sports.io",
+          "x-rapidapi-key": process.env.API_KEY
+        }
       }
-    });
+    );
 
     const data = await response.json();
 
@@ -67,11 +70,11 @@ app.get("/livescores", async (req, res) => {
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to fetch fixtures" });
+    res.status(500).json({ error: "Failed to fetch live fixtures" });
   }
 });
 
 // Root
-app.get("/", (req, res) => res.send("✅ Hello World! The server is running."));
+app.get("/", (req, res) => res.send("✅ Server is running."));
 
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
