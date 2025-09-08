@@ -1,54 +1,47 @@
-const express = require("express");
-const fetch = require("node-fetch");
+import express from "express";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.static("public"));
 
-// Livescores route
+// ✅ Livescores endpoint with mock data
 app.get("/livescores", async (req, res) => {
   try {
-    // 1. Try live matches
-    let response = await fetch("https://v3.football.api-sports.io/fixtures?live=all", {
-      headers: { "x-apisports-key": process.env.API_KEY }
-    });
-    let data = await response.json();
-    let matches = data.response || [];
-
-    // 2. If no live matches, try upcoming
-    if (matches.length === 0) {
-      response = await fetch("https://v3.football.api-sports.io/fixtures?next=5", {
-        headers: { "x-apisports-key": process.env.API_KEY }
-      });
-      data = await response.json();
-      matches = data.response || [];
-    }
-
-    // 3. If still nothing, return mock data
-    if (matches.length === 0) {
-      matches = [
+    // Mock data with proper ISO dates
+    const mockData = {
+      response: [
         {
+          fixture: {
+            date: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1h from now
+            status: { short: "NS" } // Not started
+          },
           teams: { home: { name: "Team Alpha" }, away: { name: "Team Beta" } },
-          goals: { home: 2, away: 1 }
+          goals: { home: null, away: null }
         },
         {
+          fixture: {
+            date: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(), // 3h from now
+            status: { short: "NS" }
+          },
           teams: { home: { name: "Team Gamma" }, away: { name: "Team Delta" } },
-          goals: { home: 0, away: 0 }
+          goals: { home: null, away: null }
         }
-      ];
-    }
+      ]
+    };
 
-    res.json({ response: matches });
+    res.json(mockData);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.error("Error loading mock scores:", err);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
-// Test route
+// Root test
 app.get("/", (req, res) => {
   res.send("✅ Hello World! The server is running.");
 });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
