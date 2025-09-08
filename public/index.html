@@ -16,16 +16,27 @@
         const matches = data.response || [];
 
         if (matches.length === 0) {
-          document.getElementById("scores").innerHTML = "No live matches right now.";
+          document.getElementById("scores").innerHTML = "⚠️ No live or upcoming matches.";
           return;
         }
 
         let html = "<ul>";
         matches.forEach(m => {
-          const home = m.teams.home.name;
-          const away = m.teams.away.name;
-          const score = `${m.goals.home} - ${m.goals.away}`;
-          html += `<li>${home} vs ${away} → ${score}</li>`;
+          const home = m.teams?.home?.name || "TBD";
+          const away = m.teams?.away?.name || "TBD";
+          const homeGoals = m.goals?.home ?? "-";
+          const awayGoals = m.goals?.away ?? "-";
+
+          // detect if live or upcoming
+          const status = m.fixture?.status?.short;
+          const isLive = status === "1H" || status === "2H" || status === "LIVE";
+
+          if (isLive) {
+            html += `<li>🔥 LIVE: ${home} vs ${away} → ${homeGoals} - ${awayGoals}</li>`;
+          } else {
+            const date = new Date(m.fixture?.date).toLocaleString();
+            html += `<li>📅 Upcoming: ${home} vs ${away} → ${date}</li>`;
+          }
         });
         html += "</ul>";
 
