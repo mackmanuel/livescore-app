@@ -42,9 +42,8 @@
   <div id="scores">Loading...</div>
 
   <script>
-    // --- Mock pattern matcher logic ---
+    // --- Simple pattern matcher example ---
     function checkPattern(homeScore, awayScore) {
-      // Example: live score >2 goals difference = pattern found
       if (homeScore !== null && awayScore !== null && Math.abs(homeScore - awayScore) >= 2) {
         return "✅ Pattern Found";
       }
@@ -73,14 +72,17 @@
           // Pattern result
           const patternResult = checkPattern(m.goals.home, m.goals.away);
 
-          // Date formatting
+          // --- Safe date parsing ---
           let dateText = "";
           if (m.fixture && m.fixture.date) {
-            const dateObj = new Date(m.fixture.date);
-            dateText = isNaN(dateObj.getTime()) ? "" : dateObj.toLocaleString();
+            const parsedDate = Date.parse(m.fixture.date);
+            if (!isNaN(parsedDate)) {
+              const dateObj = new Date(parsedDate);
+              dateText = dateObj.toLocaleString();
+            }
           }
 
-          // LIVE / Upcoming / default
+          // LIVE / Upcoming / Default
           if (m.fixture && m.fixture.status && m.fixture.status.short === "1H") {
             html += `<li class="live">🔥 LIVE: ${home} vs ${away} → ${score} <span class="pattern">${patternResult}</span></li>`;
           } else if (dateText) {
@@ -98,7 +100,7 @@
       }
     }
 
-    // --- Initial load & auto-refresh every 60s ---
+    // Initial load + auto-refresh every 60 seconds
     loadScores();
     setInterval(loadScores, 60000);
   </script>
