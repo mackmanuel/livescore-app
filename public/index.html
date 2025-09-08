@@ -42,14 +42,6 @@
   <div id="scores">Loading...</div>
 
   <script>
-    // --- Simple pattern matcher example ---
-    function checkPattern(homeScore, awayScore) {
-      if (homeScore !== null && awayScore !== null && Math.abs(homeScore - awayScore) >= 2) {
-        return "✅ Pattern Found";
-      }
-      return "❌ No Pattern";
-    }
-
     async function loadScores() {
       try {
         const response = await fetch("/livescores");
@@ -62,6 +54,7 @@
         }
 
         let html = "<ul>";
+
         matches.forEach(m => {
           const home = m.teams.home.name;
           const away = m.teams.away.name;
@@ -69,10 +62,10 @@
             ? `${m.goals.home} - ${m.goals.away}`
             : "vs";
 
-          // Pattern result
-          const patternResult = checkPattern(m.goals.home, m.goals.away);
+          // Use backend pattern field
+          const patternResult = m.pattern || "❌ No Pattern";
 
-          // --- Safe date parsing ---
+          // Safe date parsing
           let dateText = "";
           if (m.fixture && m.fixture.date) {
             const parsedDate = Date.parse(m.fixture.date);
@@ -82,7 +75,6 @@
             }
           }
 
-          // LIVE / Upcoming / Default
           if (m.fixture && m.fixture.status && m.fixture.status.short === "1H") {
             html += `<li class="live">🔥 LIVE: ${home} vs ${away} → ${score} <span class="pattern">${patternResult}</span></li>`;
           } else if (dateText) {
@@ -91,16 +83,17 @@
             html += `<li>${home} vs ${away} → ${score} <span class="pattern">${patternResult}</span></li>`;
           }
         });
-        html += "</ul>";
 
+        html += "</ul>";
         document.getElementById("scores").innerHTML = html;
+
       } catch (err) {
         document.getElementById("scores").innerHTML = "⚠️ Error loading matches.";
         console.error(err);
       }
     }
 
-    // Initial load + auto-refresh every 60 seconds
+    // Initial load + refresh every 60 seconds
     loadScores();
     setInterval(loadScores, 60000);
   </script>
