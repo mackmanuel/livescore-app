@@ -15,7 +15,7 @@ const lastMatches = {
   "Team Zeta": ["1-0","2-1","1-1","0-2","2-2"]
 };
 
-// --- Pattern matcher logic (hidden from frontend) ---
+// --- Pattern matcher logic ---
 function areSimilar(scoreA, scoreB) {
   const highScores = ["3-0","0-3","3-1","1-3","3-3","2-3","3-2"];
   const lowSetA = ["0-2","2-0","2-2","2-1","1-2"];
@@ -40,18 +40,60 @@ function checkPattern(teamA, teamB) {
 // --- Endpoint: upcoming fixtures ---
 app.get("/livescores", async (req, res) => {
   try {
-    // --- Replace with real API call when you get a key ---
-    // const response = await fetch("REAL_API_URL_HERE", {
-    //   method: "GET",
-    //   headers: {
-    //     "x-rapidapi-host": "api-football-v1.p.rapidapi.com",
-    //     "x-rapidapi-key": process.env.API_KEY
-    //   }
-    // });
-    // const data = await response.json();
-    // const matches = data.response.map(...);
+    let matches = [];
 
-    // --- Mock upcoming fixtures for now ---
+    // --- Try fetching real API if key is provided ---
+    if (process.env.API_KEY) {
+      const response = await fetch(
+        "https://api-football-v1.p.rapidapi.com/v3/fixtures?next=10", 
+        {
+          method: "GET",
+          headers: {
+            "x-rapidapi-host": "api-football-v1.p.rapidapi.com",
+            "x-rapidapi-key": process.env.API_KEY
+          }
+        }
+      );
+      const data = await response.json();
+
+      matches = data.response.map(m => ({
+        fixture: { date: m.fixture.date, status: { short: m.fixture.status.short } },
+        teams: { home: { name: m.teams.home.name }, away: { name: m.teams.away.name } },
+        goals: { home: m.goals.home, away: m.goals.away },
+        pattern: checkPattern(m.teams.home.name, m.teams.away.name)
+      }));
+    }
+
+    // --- Fallback to mock data if API fails or no key ---
+    if (!matches.length) {
+      const now = Date.now();
+      matches = [
+        {
+          fixture: { date: new Date(now + 2*60*60*1000).toISOString(), status: { short: "NS" } },
+          teams: { home: { name: "Team Alpha" }, away: { name: "Team Beta" } },
+          goals: { home: null, away: null },
+          pattern: checkPattern("Team Alpha", "Team Beta")
+        },
+        {
+          fixture: { date: new Date(now + 4*60*60*1000).toISOString(), status: { short: "NS" } },
+          teams: { home: { name: "Team Gamma" }, away: { name: "Team Delta" } },
+          goals: { home: null, away: null },
+          pattern: checkPattern("Team Gamma", "Team Delta")
+        },
+        {
+          fixture: { date: new Date(now + 6*60*60*1000).toISOString(), status: { short: "NS" } },
+          teams: { home: { name: "Team Epsilon" }, away: { name: "Team Zeta" } },
+          goals: { home: null, away: null },
+          pattern: checkPattern("Team Epsilon", "Team Zeta")
+        }
+      ];
+    }
+
+    res.json({ response: matches });
+
+  } catch (err) {
+    console.error(err);
+    // Always return mock data if something goes wrong
     const now = Date.now();
     const matches = [
       {
@@ -65,20 +107,9 @@ app.get("/livescores", async (req, res) => {
         teams: { home: { name: "Team Gamma" }, away: { name: "Team Delta" } },
         goals: { home: null, away: null },
         pattern: checkPattern("Team Gamma", "Team Delta")
-      },
-      {
-        fixture: { date: new Date(now + 6*60*60*1000).toISOString(), status: { short: "NS" } },
-        teams: { home: { name: "Team Epsilon" }, away: { name: "Team Zeta" } },
-        goals: { home: null, away: null },
-        pattern: checkPattern("Team Epsilon", "Team Zeta")
       }
     ];
-
     res.json({ response: matches });
-
-  } catch (err) {
-    console.error(err);
-    res.json({ response: [] }); // fallback empty list
   }
 });
 
